@@ -72,6 +72,29 @@ def save_clips_image(clips,pathname):
         save_image(f"{pathname}/pic{num}.jpg",clip)
         
 
+# check every detection, select available person including 'face' coords
+def check_avalib_person(detections):
+    # distinguish person or face 
+    avalilable_detects = []
+    persons,faces = [], []
+    for detection in detections:
+        if detection.class_name == 'person':
+            persons.append(detection)
+        elif detection.class_name == 'face':
+            faces.append(detection)
+    #check face maybe fit some person data
+    for person in persons:
+        #topleft(x1,y1),bottomright(x2,y2);
+        x1, y1 = person.coords[0]
+        x2, y2 = person.coords[2]
+        for face in faces:
+            bx1,by1 = face.coords[0]
+            bx2,by2 = face.coords[2]
+            # check face is fited in persons's coords
+            if(bx1>=x1 and bx2<=x2 and by1>=y1 and by2<=y2):
+                # fine, correct persion image including 'face'
+                avalilable_detects.append(person)
+    return avalilable_detects
     
  
 def corp_person(stream_path, frameindex):
@@ -101,10 +124,12 @@ def corp_person(stream_path, frameindex):
  
     # Could extend the feature here to render and crop persons
     #render_by_names(frame,detections,['person','face'])
-
     render_by_names(frame,detections,['face'])
+    # check and return if perfect person image including 'face' 
+    available_dects = check_avalib_person(detections)
+
     # corp persons and save image
-    clips = crop_detection_object(frame, detections, 'person')
+    clips = crop_detection_object(frame, available_dects, 'person')
     
     save_clips_image(clips, outpath)
     

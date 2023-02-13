@@ -72,7 +72,9 @@ def process_video(filename, outputname, api, capsule_names):
     fps = cap.get(cv2.CAP_PROP_FPS)
     framecount = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     # 声明编码器和创建 VideoWrite 对象
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    #fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    #modified codec using 'avc3/h.264', for reduce mp4 file size
+    fourcc = cv2.VideoWriter_fourcc(*'avc3')
     out = cv2.VideoWriter(outputname, fourcc, fps, (width, height))
 
     frameindex = 0
