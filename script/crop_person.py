@@ -1,5 +1,8 @@
 
 import cv2 
+from PIL import Image, ImageFont, ImageDraw
+import numpy as np
+
 from brainframe.api import BrainFrameAPI
 import os
 from argparse import ArgumentParser
@@ -19,12 +22,20 @@ def detect_image(api, frame, capsule_names=None):
         capsule_names = ["detector_person_openvino", "detector_face_openvino"]
     detections = api.process_image(frame, capsule_names, {})
     return detections
+   
+
     
-    
-def render_rectangle(img,coords,bgrcolor,name=""):
+def render_rectangle(img,coords,bgrcolor,text=""):
     # img, (lefttop), (rightbottom), bgrcolor(255,0,0), thicknes, linetype
     # maybe draw name in rectangle topleft
+    x0,y0 = coords[0]
+    x1,y1 = coords[1]
+    fontheight = 30
+
     cv2.rectangle(img, tuple(coords[0]), tuple(coords[2]), bgrcolor, 1, 4)
+    #cv2 only surport ascii char, show other unicode need to use other way
+    cv2.putText(img,text,(x0,y0+fontheight),cv2.FONT_HERSHEY_SIMPLEX,1,bgrcolor)
+
     
     
 def corp_rectangle(frame,coords):
@@ -41,7 +52,7 @@ def render_by_names(img,detections,names):
             }
     for detection in detections:
         if detection.class_name in names:
-            render_rectangle(img,detection.coords,bgr_dic[detection.class_name])
+            render_rectangle(img,detection.coords,bgr_dic[detection.class_name],detection.class_name)
     
     
     
@@ -97,21 +108,23 @@ def check_avalib_person(detections):
     return avalilable_detects
     
  
-def corp_person(stream_path, frameindex):
+def corp_person(server_url:str, stream_path, frameindex):
     # The capsules for person and face detection
-    # capsule_names = ["detector_person_openvino", "detector_face_openvino"]
-    capsule_names = ["detector_person_administration", "detector_face_fast"]
+    capsule_names = ["detector_person_openvino", "detector_face_openvino"]
+    # capsule_names = ["detector_person_administration", "detector_face_fast"]
     # directory to save pic file
     outpath = "../images"
     # The url to access the brainframe server with rest api
-    bf_server_url = "http://localhost"
-    
+    # bf_server_url = "http://192.168.127.130"
+    bf_server_url = server_url
+
     # The video file name, it can be replaced by the other video file or rtsp/http streams
     if not stream_path:
         stream_path = "../video/20230113-102816.mp4"
  
     api = BrainFrameAPI(bf_server_url)
-    api.wait_for_server_initialization()
+    
+    api.wait_for_server_initialization(timeout=60)
     
     #frameindex = 5
     frame = read_frame(stream_path, frameindex)
@@ -124,7 +137,13 @@ def corp_person(stream_path, frameindex):
  
     # Could extend the feature here to render and crop persons
     #render_by_names(frame,detections,['person','face'])
-    render_by_names(frame,detections,['face'])
+    render_by_names(frame,detections,['person','face'])
+    
+    #only for debug
+    cv2.imshow('image',frame)
+    cv2.waitKey()
+
+
     # check and return if perfect person image including 'face' 
     available_dects = check_avalib_person(detections)
 
@@ -137,12 +156,14 @@ def corp_person(stream_path, frameindex):
     
     
 def main():
-    parser = ArgumentParser()
+    parser = ArgumentParser(description="Crop persons clip from a frame in video")
     parser.add_argument("-file", type=str, default=None, help="name of video for detecton")
     parser.add_argument("-index", type=int, default=100, help="index of frame in video")
+    parser.add_argument("--server-url", default="http://localhost", help="url of brainframe server")
+
     args = parser.parse_args()
     
-    corp_person(args.file,args.index)
+    corp_person(args.server_url,args.file,args.index)
     
  
 if __name__ == "__main__":
